@@ -1,5 +1,5 @@
 /**
- * internal-auth.ts
+ * lib/internal-auth.ts
  *
  * Protects internal API routes from external access.
  * Internal routes (/api/internal/*) are only called by the app itself,
@@ -8,6 +8,7 @@
  * Uses a Bearer token from INTERNAL_SECRET env var.
  */
 
+/** Constant-time string equality for comparing secrets. */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;

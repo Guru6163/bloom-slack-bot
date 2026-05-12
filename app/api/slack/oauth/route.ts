@@ -1,9 +1,16 @@
+/**
+ * app/api/slack/oauth/route.ts
+ *
+ * Slack OAuth callback — exchanges code for tokens and sends setup DM.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getAppUrl } from "@/lib/app-url";
 import { generateSetupToken, initDb, upsertWorkspaceConfig } from "@/lib/db";
 import { openDm, postMessage } from "@/lib/slack";
 
+/** Escapes HTML entities for safe interpolation into HTML templates. */
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -12,6 +19,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Returns a small HTML document wrapped in a {@link NextResponse}. */
 function htmlResponse(
   title: string,
   bodyInnerHtml: string,
@@ -36,6 +44,7 @@ ${bodyInnerHtml}
   });
 }
 
+/** Narrow unknown JSON to a plain object record. */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -53,6 +62,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * 5. Redirect to a success page or return success HTML
  *
  * On error: return a simple error HTML page.
+ *
+ * @param req Incoming OAuth redirect request (query contains `code` or `error`).
  */
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);

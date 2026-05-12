@@ -1,66 +1,88 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+/**
+ * app/page.tsx
+ *
+ * Landing page for the Bloom Slack Bot.
+ * Shows an "Add to Slack" button that starts the OAuth flow.
+ */
 
+import Link from "next/link";
+
+const BG = "#0a0a0a";
+const TEXT = "#f5f0e8";
+const ACCENT = "#ff4500";
+
+/**
+ * Marketing landing page with OAuth install entrypoint.
+ */
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "32px 20px",
+        background: BG,
+        color: TEXT,
+        fontFamily:
+          'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        textAlign: "center",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: "clamp(1.75rem, 4vw, 2.25rem)",
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+          margin: "0 0 12px",
+        }}
+      >
+        🌸 Bloom for Slack
+      </h1>
+      <p
+        style={{
+          maxWidth: "420px",
+          margin: "0 0 28px",
+          fontSize: "1.05rem",
+          lineHeight: 1.55,
+          opacity: 0.92,
+        }}
+      >
+        Generate on-brand images in Slack with{" "}
+        <code
+          style={{
+            fontSize: "0.95em",
+            padding: "2px 8px",
+            borderRadius: "6px",
+            background: "rgba(245, 240, 232, 0.08)",
+            border: "1px solid rgba(245, 240, 232, 0.12)",
+          }}
+        >
+          /bloom-gen
+        </code>
+      </p>
+      <Link
+        href="/api/slack/install"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "14px 28px",
+          borderRadius: "10px",
+          background: ACCENT,
+          color: "#fff",
+          fontWeight: 600,
+          fontSize: "1rem",
+          border: "none",
+          cursor: "pointer",
+          textDecoration: "none",
+          boxShadow: "0 4px 20px rgba(255, 69, 0, 0.25)",
+        }}
+      >
+        Add to Slack
+      </Link>
+    </main>
   );
 }

@@ -1,8 +1,15 @@
+/**
+ * app/api/slack/setup/validate-key/route.ts
+ *
+ * Validates a Bloom API key during the web setup flow.
+ */
+
 import { NextResponse } from "next/server";
 
 import { listBloomBrands, type BloomBrand } from "@/lib/bloom";
 import { getWorkspaceBySetupToken, initDb } from "@/lib/db";
 
+/** Returns true if value is a non-null object (not an array). */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }

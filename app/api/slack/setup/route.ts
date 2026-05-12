@@ -1,5 +1,12 @@
+/**
+ * app/api/slack/setup/route.ts
+ *
+ * Web UI for workspace Bloom setup (token-gated).
+ */
+
 import { getWorkspaceBySetupToken, initDb } from "@/lib/db";
 
+/** Escapes HTML entities for safe interpolation into HTML templates. */
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -8,12 +15,14 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** JSON embedded into the setup page for client-side bootstrapping. */
 type SetupConfig = {
   token: string;
   skipApiKey: boolean;
   teamName: string;
 };
 
+/** Renders the full setup HTML document for a valid workspace token. */
 function renderSetupPage(cfg: SetupConfig): Response {
   const json = JSON.stringify(cfg);
   const safeTeam = escapeHtml(cfg.teamName || "your workspace");
@@ -320,6 +329,7 @@ function renderSetupPage(cfg: SetupConfig): Response {
   });
 }
 
+/** Renders a minimal HTML error page for invalid or expired setup links. */
 function errorPage(message: string, status: number): Response {
   const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/><title>Setup</title>

@@ -1,3 +1,9 @@
+/**
+ * app/api/slack/install/route.ts
+ *
+ * Slack OAuth "Add to Slack" install entrypoint.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getAppUrl } from "@/lib/app-url";
@@ -10,6 +16,8 @@ import { getAppUrl } from "@/lib/app-url";
  *
  * Slack will redirect back to /api/slack/oauth after the user
  * approves the app installation.
+ *
+ * @param req Unused; present for the Next.js `Request` route signature.
  */
 export async function GET(req: Request): Promise<Response> {
   const clientId = process.env.SLACK_CLIENT_ID?.trim();

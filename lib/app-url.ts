@@ -1,5 +1,5 @@
 /**
- * app-url.ts
+ * lib/app-url.ts
  *
  * Resolves the base URL of the deployed app.
  * Used to build setup links, OAuth redirect URLs, etc.

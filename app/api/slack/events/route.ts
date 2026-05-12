@@ -12,6 +12,9 @@ import { verifySlackSignature } from "@/lib/utils";
  * CRITICAL: Must respond to Slack within 3 seconds.
  * Heavy work (generation) is fired in the background.
  */
+/**
+ * Health check for monitoring (`?test=1`); otherwise 404.
+ */
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (url.searchParams.get("test") === "1") {
@@ -20,6 +23,9 @@ export async function GET(req: Request): Promise<Response> {
   return new Response("Not found", { status: 404 });
 }
 
+/**
+ * Verifies Slack signing secret, then delegates to the Slack events router.
+ */
 export async function POST(req: Request): Promise<Response> {
   const rawBody = await req.text();
   const valid = await verifySlackSignature(req, rawBody);

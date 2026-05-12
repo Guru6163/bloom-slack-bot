@@ -1,8 +1,15 @@
+/**
+ * app/api/slack/setup/save/route.ts
+ *
+ * Persists Bloom workspace configuration from the web setup UI.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getWorkspaceBySetupToken, initDb, upsertWorkspaceConfig } from "@/lib/db";
 import { openDm, postMessage } from "@/lib/slack";
 
+/** Returns true if value is a non-null object (not an array). */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }

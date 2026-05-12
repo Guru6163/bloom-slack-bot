@@ -1,5 +1,5 @@
 /**
- * db.ts
+ * lib/db.ts
  *
  * All database queries for the Bloom Slack Bot.
  * Uses Vercel Postgres (@vercel/postgres).
@@ -44,6 +44,7 @@ export interface GenerationJob {
   created_at: string;
 }
 
+/** Maps a Postgres row object to a {@link WorkspaceConfig}. */
 function mapWorkspaceRow(row: {
   team_id: string;
   team_name: string;
@@ -60,6 +61,7 @@ function mapWorkspaceRow(row: {
   return { ...row };
 }
 
+/** Maps a Postgres row object to a {@link GenerationJob}. */
 function mapJobRow(row: {
   id: string;
   team_id: string;
@@ -120,6 +122,7 @@ function mapJobRow(row: {
   };
 }
 
+/** Builds default {@link WorkspaceConfig} values for a new team id. */
 const emptyWorkspace = (team_id: string): WorkspaceConfig => ({
   team_id,
   team_name: "",

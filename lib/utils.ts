@@ -1,5 +1,5 @@
 /**
- * utils.ts
+ * lib/utils.ts
  *
  * Utility functions for request verification and command parsing.
  */
@@ -18,11 +18,13 @@ const RATIO_ALIASES: Record<string, string> = {
   story: "9:16",
 };
 
+/** Applies Bloom slash-command ratio aliases (e.g. `square` → `1:1`). */
 function resolveRatioToken(token: string): string {
   const key = token.toLowerCase();
   return RATIO_ALIASES[key] ?? token;
 }
 
+/** True if the token is an alias or matches `digits:digits` ratio syntax. */
 function isKnownRatioShape(token: string): boolean {
   const t = token.toLowerCase();
   if (t in RATIO_ALIASES) {
@@ -31,6 +33,7 @@ function isKnownRatioShape(token: string): boolean {
   return /^\d+:\d+$/.test(token);
 }
 
+/** Constant-time equality for hex signature strings of equal length. */
 function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;
@@ -42,6 +45,7 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   return out === 0;
 }
 
+/** Lowercase hex encoding of a SHA-256 HMAC digest buffer. */
 function hexFromBuffer(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
   let hex = "";

@@ -1,3 +1,9 @@
+/**
+ * globals.css
+ *
+ * Global baseline styles for the Bloom Slack Bot app shell.
+ */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

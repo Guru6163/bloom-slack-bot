@@ -1,5 +1,5 @@
 /**
- * slack.ts
+ * lib/slack.ts
  *
  * Slack Web API client and Block Kit message builders.
  * All Slack API calls go through slackApi().
@@ -11,11 +11,12 @@ const SLACK_API_BASE = "https://slack.com/api";
 const MAX_PROMPT_PREVIEW = 2800;
 const MAX_ALT_TEXT = 2000;
 
+/** Type guard: plain object (not array, not null). */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** Escape text embedded in mrkdwn so user-controlled strings cannot break formatting. */
+/** Escapes characters that break Slack mrkdwn in user-provided strings. */
 function escapeMrkdwn(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -23,6 +24,7 @@ function escapeMrkdwn(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
+/** Truncates a string to a maximum length with an ellipsis suffix. */
 function truncate(s: string, max: number): string {
   if (s.length <= max) {
     return s;
@@ -304,6 +306,14 @@ export function buildResultBlocks(
 /**
  * Error message shown when generation fails.
  * Shows the error with a Try Again button.
+ */
+/**
+ * Builds error / retry blocks for failed generations.
+ *
+ * @param prompt Original user prompt (shown truncated/escaped).
+ * @param error Error message (escaped for inline code).
+ * @param jobId Job id passed to the Try Again button value.
+ * @param headline Bold headline line (defaults to a generic message).
  */
 export function buildErrorBlocks(
   prompt: string,

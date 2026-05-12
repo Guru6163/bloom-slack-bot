@@ -1,3 +1,9 @@
+/**
+ * app/api/internal/run-generation/route.ts
+ *
+ * HTTP entry for long-running Bloom image generation (internal only).
+ */
+
 import { handleRunGeneration } from "@/lib/run-generation-handler";
 import { isInternalRequest } from "@/lib/internal-auth";
 
@@ -26,10 +32,14 @@ import { isInternalRequest } from "@/lib/internal-auth";
  */
 export const maxDuration = 300;
 
+/** Narrow unknown JSON to a plain object record. */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * Authenticates the request and forwards to {@link handleRunGeneration}.
+ */
 export async function POST(req: Request): Promise<Response> {
   if (!isInternalRequest(req)) {
     return new Response("Unauthorized", { status: 401 });

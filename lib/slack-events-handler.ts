@@ -1,5 +1,5 @@
 /**
- * slack-events-handler.ts
+ * lib/slack-events-handler.ts
  *
  * Routes incoming Slack requests to the correct handler.
  * Called by the events API route after signature verification.
@@ -26,10 +26,12 @@ import {
 } from "@/lib/slack";
 import { parseSlashCommand, type ParsedCommand } from "@/lib/utils";
 
+/** Narrow unknown JSON to a plain object record. */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** JSON HTTP response with UTF-8 content type. */
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -37,10 +39,12 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
+/** Empty 200 response (common Slack slash-command acknowledgment). */
 function emptyOk(): Response {
   return new Response(null, { status: 200 });
 }
 
+/** Kicks off background generation without awaiting the internal HTTP call. */
 function fireRunGeneration(jobId: string): void {
   const url = `${getAppUrl()}/api/internal/run-generation`;
   void fetch(url, {
@@ -53,6 +57,7 @@ function fireRunGeneration(jobId: string): void {
   }).catch(() => {});
 }
 
+/** Resolves a setup URL for a workspace, minting a token if needed. */
 async function ensureSetupUrl(teamId: string): Promise<string> {
   const ws = await getWorkspaceConfig(teamId);
   if (!ws) {
@@ -65,6 +70,7 @@ async function ensureSetupUrl(teamId: string): Promise<string> {
   return `${getAppUrl()}/api/slack/setup?token=${encodeURIComponent(token)}`;
 }
 
+/** Ephemeral slash-command response with plain `text`. */
 function ephemeralPayload(text: string): Response {
   return jsonResponse({
     response_type: "ephemeral",
@@ -72,6 +78,7 @@ function ephemeralPayload(text: string): Response {
   });
 }
 
+/** Ephemeral slash-command response with Block Kit `blocks`. */
 function ephemeralBlocks(blocks: unknown[]): Response {
   return jsonResponse({
     response_type: "ephemeral",
@@ -91,6 +98,7 @@ async function handleUrlVerification(body: unknown): Promise<Response> {
   return jsonResponse({ challenge: body.challenge });
 }
 
+/** Handles `/bloom-gen generate …` after workspace checks pass. */
 async function handleSlashGenerate(
   workspace: NonNullable<Awaited<ReturnType<typeof getWorkspaceConfig>>>,
   parsed: Extract<ParsedCommand, { action: "generate" }>,

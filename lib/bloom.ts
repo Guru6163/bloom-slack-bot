@@ -1,5 +1,5 @@
 /**
- * bloom.ts
+ * lib/bloom.ts
  *
  * Bloom REST API client for the Slack Bot.
  * Handles brand management, image generation, and polling.
@@ -45,18 +45,22 @@ export type BloomAspectRatio =
   | "16:9"
   | "21:9";
 
+/** Type guard for plain object JSON records. */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Coerces unknown JSON values to string when safe. */
 function asString(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
 }
 
+/** Promise delay helper for polling backoff. */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Builds an absolute Bloom API URL from a path fragment. */
 function normalizePath(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
@@ -64,6 +68,7 @@ function normalizePath(path: string): string {
   return path.startsWith("/") ? `${BLOOM_BASE}${path}` : `${BLOOM_BASE}/${path}`;
 }
 
+/** Reads the required `data` object from Bloom JSON responses. */
 function getData(json: unknown): Record<string, unknown> {
   if (!isRecord(json) || !isRecord(json.data)) {
     throw new Error("Bloom API response missing data envelope");
@@ -110,6 +115,7 @@ async function bloomFetch(
   return res;
 }
 
+/** Parses JSON from a Bloom HTTP response body. */
 async function readJson(res: Response): Promise<unknown> {
   const text = await res.text();
   if (!text) {
@@ -202,6 +208,7 @@ function parseListImagesResponse(json: unknown): BloomImage[] {
   return imagesRaw.filter(isRecord).map((row) => parseBloomImageFromData(row));
 }
 
+/** Returns true when a Bloom error looks retryable (rate limits / transient 5xx). */
 function isTransientBloomError(err: unknown): boolean {
   if (!(err instanceof Error)) {
     return false;
@@ -209,6 +216,7 @@ function isTransientBloomError(err: unknown): boolean {
   return /\bBloom API (429|500|502|503|504)\b/.test(err.message);
 }
 
+/** Retries a Bloom request until success, non-retryable failure, or deadline. */
 async function withRetries<T>(
   fn: () => Promise<T>,
   opts: { deadlineMs: number; label: string }
@@ -347,16 +355,19 @@ export async function generateBloomImages(
   return parseGenerationCreateResponse(json);
 }
 
+/** True when Bloom marks an image as permanently failed. */
 function isTerminalFailureStatus(status: string): boolean {
   const s = status.toLowerCase();
   return s === "failed";
 }
 
+/** True when Bloom marks an image as successfully completed. */
 function isCompleteStatus(status: string): boolean {
   const s = status.toLowerCase();
   return s === "completed";
 }
 
+/** Ensures every expected image id is present and completed (used after batch wait). */
 function assertImagesTerminal(
   images: BloomImage[],
   expectedIds: string[]
@@ -397,6 +408,7 @@ export async function pollBloomImages(
   const deadline = Date.now() + 100_000;
   const orderedIds = [...imageIds];
 
+  /** Polls multiple ids in one request using `GET /images?ids=…&wait=true`. */
   const pollBatch = async (ids: string[]): Promise<BloomImage[]> => {
     while (Date.now() < deadline) {
       const remainingMs = deadline - Date.now();
@@ -438,6 +450,7 @@ export async function pollBloomImages(
     );
   };
 
+  /** Polls a single id using `GET /images/{id}?wait=true`. */
   const pollOne = async (id: string): Promise<BloomImage> => {
     while (Date.now() < deadline) {
       const remainingMs = deadline - Date.now();

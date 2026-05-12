@@ -1,5 +1,5 @@
 /**
- * run-generation-handler.ts
+ * lib/run-generation-handler.ts
  *
  * Core generation logic called by the internal route.
  * Separated from the route file for clarity and testability.
@@ -23,6 +23,7 @@ import {
   updateMessage,
 } from "@/lib/slack";
 
+/** Escapes mrkdwn-sensitive characters for intermediate Slack status messages. */
 function escapeMrkdwn(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -30,6 +31,7 @@ function escapeMrkdwn(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
+/** Truncates prompt text shown in intermediate Slack status messages. */
 function truncate(s: string, max: number): string {
   if (s.length <= max) {
     return s;
@@ -37,6 +39,7 @@ function truncate(s: string, max: number): string {
   return `${s.slice(0, max - 1)}…`;
 }
 
+/** Coerces stored aspect ratio strings to a supported Bloom API enum value. */
 function toAspectRatio(ratio: string): BloomAspectRatio {
   const allowed = new Set<string>([
     "1:1",
@@ -56,6 +59,7 @@ function toAspectRatio(ratio: string): BloomAspectRatio {
   return "1:1";
 }
 
+/** Block Kit shown while Bloom generation + polling is in progress. */
 function buildGeneratingStageBlocks(prompt: string): unknown[] {
   const p = escapeMrkdwn(truncate(prompt, 600));
   return [
