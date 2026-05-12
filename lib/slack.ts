@@ -308,17 +308,19 @@ export function buildResultBlocks(
 export function buildErrorBlocks(
   prompt: string,
   error: string,
-  jobId: string
+  jobId: string,
+  headline = "Something went wrong"
 ): unknown[] {
   const p = escapeMrkdwn(truncate(prompt, MAX_PROMPT_PREVIEW));
   const e = escapeMrkdwn(truncate(error, 1500)).replace(/`/g, "'");
+  const h = escapeMrkdwn(truncate(headline, 200));
 
   return [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*Something went wrong*\n*Prompt:* ${p}\n*Error:* \`${e}\``,
+        text: `*${h}*\n*Prompt:* ${p}\n*Error:* \`${e}\``,
       },
     },
     { type: "divider" },
