@@ -19,7 +19,9 @@ import {
 } from "@/lib/db";
 import {
   buildErrorBlocks,
+  buildLoadingBlocks,
   buildResultBlocks,
+  postMessage,
   updateMessage,
 } from "@/lib/slack";
 
@@ -145,8 +147,25 @@ export async function handleRunGeneration(body: {
     return new Response("Not configured", { status: 400 });
   }
 
-  if (!job.message_ts) {
-    return new Response("Job missing message_ts", { status: 400 });
+  let messageTs = job.message_ts;
+  if (!messageTs) {
+    try {
+      const loadingTs = await postMessage(
+        workspace.bot_token,
+        job.channel_id,
+        buildLoadingBlocks(job.prompt, job.aspect_ratio, job.user_id),
+        job.thread_ts ?? undefined
+      );
+      await updateJob(rawId, { message_ts: loadingTs });
+      messageTs = loadingTs;
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Failed to post loading message";
+      await updateJob(rawId, {
+        status: "failed",
+        error: err,
+      });
+      return new Response("Failed to post to Slack", { status: 500 });
+    }
   }
 
   await updateJob(rawId, { status: "generating", error: null });
@@ -155,7 +174,7 @@ export async function handleRunGeneration(body: {
     await updateMessage(
       workspace.bot_token,
       job.channel_id,
-      job.message_ts,
+      messageTs,
       buildGeneratingStageBlocks(job.prompt)
     );
   } catch {
@@ -193,7 +212,7 @@ export async function handleRunGeneration(body: {
       workspace.brand_name || undefined
     );
 
-    await updateMessage(workspace.bot_token, job.channel_id, job.message_ts, [
+    await updateMessage(workspace.bot_token, job.channel_id, messageTs, [
       {
         type: "section",
         text: {
@@ -215,7 +234,7 @@ export async function handleRunGeneration(body: {
       await updateMessage(
         workspace.bot_token,
         job.channel_id,
-        job.message_ts,
+        messageTs,
         buildErrorBlocks(job.prompt, message, rawId, "❌ Generation failed")
       );
     } catch {

@@ -21,7 +21,6 @@ import {
   buildHelpBlocks,
   buildLoadingBlocks,
   buildResultBlocks,
-  postMessage,
   updateMessage,
 } from "@/lib/slack";
 import { parseSlashCommand, type ParsedCommand } from "@/lib/utils";
@@ -31,7 +30,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** JSON HTTP response with UTF-8 content type. */
+/** JSON HTTP response with UTF-8 content type (Slack slash commands & API). */
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -39,9 +38,12 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
-/** Empty 200 response (common Slack slash-command acknowledgment). */
-function emptyOk(): Response {
-  return new Response(null, { status: 200 });
+/** Slack interactive payload acknowledgment (`{ ok: true }`). */
+function slackInteractionAck(): Response {
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 /** Kicks off background generation without awaiting the internal HTTP call. */
@@ -72,18 +74,30 @@ async function ensureSetupUrl(teamId: string): Promise<string> {
 
 /** Ephemeral slash-command response with plain `text`. */
 function ephemeralPayload(text: string): Response {
-  return jsonResponse({
-    response_type: "ephemeral",
-    text,
-  });
+  return new Response(
+    JSON.stringify({
+      response_type: "ephemeral",
+      text,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 /** Ephemeral slash-command response with Block Kit `blocks`. */
 function ephemeralBlocks(blocks: unknown[]): Response {
-  return jsonResponse({
-    response_type: "ephemeral",
-    blocks,
-  });
+  return new Response(
+    JSON.stringify({
+      response_type: "ephemeral",
+      blocks,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 /**
@@ -113,7 +127,7 @@ async function handleSlashGenerate(
   ) {
     const url = await ensureSetupUrl(workspace.team_id);
     return ephemeralPayload(
-      `Bloom is not set up for this workspace yet. Finish setup here: ${url}`
+      `🌸 Bloom isn't set up yet.\nVisit ${url} to connect your Bloom account.`
     );
   }
 
@@ -127,18 +141,11 @@ async function handleSlashGenerate(
     thread_ts: threadTs,
   });
 
-  const loadingTs = await postMessage(
-    workspace.bot_token,
-    channelId,
-    buildLoadingBlocks(parsed.prompt, parsed.ratio, userId),
-    threadTs
-  );
-
-  await updateJob(jobId, { message_ts: loadingTs });
-
   fireRunGeneration(jobId);
 
-  return emptyOk();
+  return ephemeralPayload(
+    "⏳ Generating your image... it will appear shortly."
+  );
 }
 
 /**
@@ -147,31 +154,21 @@ async function handleSlashGenerate(
  * Supported subcommands:
  *
  * generate {prompt} {ratio}:
- *   1. Check workspace is set up (has Bloom API key + brand)
- *   2. Post loading message to channel
- *   3. Create generation job in database
- *   4. Fire /api/internal/run-generation in background (no await)
- *   5. Return empty 200 to Slack immediately
+ *   Create job, fire background generation (channel loading is posted in the
+ *   generation handler), return ephemeral JSON immediately.
  *
- * setup {api_key}:
- *   Returns setup link for this workspace
+ * setup {api_key}: ephemeral with setup link.
+ * brands / credits: ephemeral with API results.
+ * help / default: ephemeral with help blocks.
  *
- * brands:
- *   Lists brands from Bloom API
- *
- * credits:
- *   Shows credit balance
- *
- * help / empty:
- *   Shows help message
- *
- * If workspace not set up:
- *   Return ephemeral message with setup link
+ * If workspace is not fully set up (except setup): ephemeral with setup URL.
  */
 async function handleSlashCommand(params: URLSearchParams): Promise<Response> {
   const command = (params.get("command") ?? "").trim();
   if (command !== "/bloom-gen") {
-    return emptyOk();
+    return ephemeralPayload(
+      "Unknown command. Use `/bloom-gen help` for supported commands."
+    );
   }
 
   const teamId = params.get("team_id")?.trim() ?? "";
@@ -214,7 +211,7 @@ async function handleSlashCommand(params: URLSearchParams): Promise<Response> {
   if (needsSetup && parsed.action !== "setup") {
     const url = await ensureSetupUrl(workspace.team_id);
     return ephemeralPayload(
-      `Bloom needs to be connected for this workspace. Finish setup: ${url}`
+      `🌸 Bloom isn't set up yet.\nVisit ${url} to connect your Bloom account.`
     );
   }
 
@@ -306,17 +303,17 @@ async function handleInteraction(
   payload: Record<string, unknown>
 ): Promise<Response> {
   if (payload.type !== "block_actions") {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   const rawActions = payload.actions;
   if (!Array.isArray(rawActions) || rawActions.length === 0) {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   const act = rawActions[0];
   if (!isRecord(act)) {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   const actionId = typeof act.action_id === "string" ? act.action_id : "";
@@ -336,31 +333,31 @@ async function handleInteraction(
       : "";
 
   if (!teamId || !channelId || !messageTs || !actionId) {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   try {
     await initDb();
   } catch {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   const workspace = await getWorkspaceConfig(teamId);
   if (!workspace?.bot_token) {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   if (actionId === "bloom_download") {
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   if (actionId === "bloom_prev_image" || actionId === "bloom_next_image") {
     if (!value) {
-      return emptyOk();
+      return slackInteractionAck();
     }
     const job = await getJob(value);
     if (!job || !job.image_urls.length) {
-      return emptyOk();
+      return slackInteractionAck();
     }
     let idx = job.current_image_index;
     if (actionId === "bloom_prev_image") {
@@ -382,16 +379,16 @@ async function handleInteraction(
         workspace.brand_name || undefined
       )
     );
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   if (actionId === "bloom_regenerate") {
     if (!value) {
-      return emptyOk();
+      return slackInteractionAck();
     }
     const old = await getJob(value);
     if (!old) {
-      return emptyOk();
+      return slackInteractionAck();
     }
     const newId = await createJob({
       team_id: old.team_id,
@@ -410,10 +407,10 @@ async function handleInteraction(
     );
     await updateJob(newId, { message_ts: messageTs });
     fireRunGeneration(newId);
-    return emptyOk();
+    return slackInteractionAck();
   }
 
-  return emptyOk();
+  return slackInteractionAck();
 }
 
 /**
@@ -440,9 +437,9 @@ export async function handleSlackEventsPost(
       return handleUrlVerification(body);
     }
     if (isRecord(body) && body.type === "event_callback") {
-      return emptyOk();
+      return slackInteractionAck();
     }
-    return emptyOk();
+    return slackInteractionAck();
   }
 
   if (ct.includes("application/x-www-form-urlencoded")) {
