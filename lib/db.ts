@@ -8,8 +8,8 @@
  *   workspace_configs  — Slack workspace + Bloom API key + brand
  *   generation_jobs    — image generation jobs and their status
  *
- * DDL: run `supabase/bloom_slack_init_db.sql` once in the Supabase SQL editor so
- * `initDb()` can call the `bloom_slack_init_db` RPC to create tables and indexes.
+ * Tables must exist before the app runs: create them in the Supabase SQL editor
+ * (see `supabase/bloom_slack_init_db.sql`). `initDb()` only verifies they exist.
  */
 
 import { randomBytes, randomUUID } from "crypto";
@@ -160,19 +160,29 @@ const emptyWorkspace = (team_id: string): WorkspaceConfig => ({
 });
 
 /**
- * Creates the database tables if they don't exist.
- * Call this once during app initialization or via a setup endpoint.
- * Safe to run multiple times — uses IF NOT EXISTS inside the DB function.
- *
- * Requires `supabase/bloom_slack_init_db.sql` to have been run once in the
- * Supabase SQL editor (installs the `bloom_slack_init_db` RPC).
+ * Verifies required tables exist (queries each with `limit(1)`).
+ * Create tables in the Supabase SQL editor using `supabase/bloom_slack_init_db.sql`.
+ * Safe to call on every request; throws if a table is missing or unreachable.
  */
 export async function initDb(): Promise<void> {
-  const { error } = await supabase().rpc("bloom_slack_init_db");
-  if (error) {
+  const { error: configError } = await supabase()
+    .from("workspace_configs")
+    .select("team_id")
+    .limit(1);
+
+  if (configError) {
     throw new Error(
-      `${error.message}. If the function is missing, run supabase/bloom_slack_init_db.sql in the Supabase SQL editor.`
+      `workspace_configs table missing: ${configError.message}`
     );
+  }
+
+  const { error: jobsError } = await supabase()
+    .from("generation_jobs")
+    .select("id")
+    .limit(1);
+
+  if (jobsError) {
+    throw new Error(`generation_jobs table missing: ${jobsError.message}`);
   }
 }
 

@@ -39,7 +39,7 @@ npm install
 
 1. Create a project at [supabase.com](https://supabase.com/).
 2. **Project Settings → API**: copy **Project URL** (`SUPABASE_URL`) and **service_role** key (`SUPABASE_SERVICE_ROLE_KEY`). Use the **service role** key only on the server (never in the browser).
-3. **SQL → New query**: paste and run the contents of [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once. That creates the `bloom_slack_init_db()` RPC used by `initDb()` to create tables and indexes.
+3. **SQL → New query**: paste and run the contents of [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once to create tables and indexes.
 
 ### 3. Environment variables
 
@@ -98,7 +98,7 @@ Open [http://localhost:3000](http://localhost:3000) for the landing page; **Add 
 
 ### 7. Initialize the database (once)
 
-After running `supabase/bloom_slack_init_db.sql` in the Supabase SQL editor (step 2), call the init endpoint so tables are created via the `bloom_slack_init_db` RPC:
+After creating tables in the Supabase SQL editor (step 2), verify them with the init endpoint:
 
 ```bash
 curl -sS "http://localhost:3000/api/slack/setup/init"
@@ -106,7 +106,7 @@ curl -sS "http://localhost:3000/api/slack/setup/init"
 curl -sS "https://YOUR-TUNNEL/api/slack/setup/init"
 ```
 
-Expect `{ "ok": true }`. Safe to call more than once.
+Expect `{ "ok": true, "message": "Database ready. Both tables exist." }`. Safe to call repeatedly.
 
 ### 8. Install and test
 
@@ -122,7 +122,7 @@ Expect `{ "ok": true }`. Safe to call more than once.
 | OAuth redirect mismatch | Slack **Redirect URLs** must exactly match `{APP_URL}/api/slack/oauth` |
 | Slash command never hits the server | Request URL still points at localhost, or tunnel stopped |
 | Generation issues | Missing/wrong `INTERNAL_SECRET`, or wrong `NEXT_PUBLIC_APP_URL` so the internal `fetch` to `/api/internal/run-generation` fails |
-| DB errors | Missing or wrong `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, SQL file not run in Supabase, or `/api/slack/setup/init` not called |
+| DB errors | Missing or wrong `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, SQL file not applied in Supabase, or `/api/slack/setup/init` reports missing tables |
 
 ## Deploy to Vercel
 
@@ -162,12 +162,12 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 6. Supabase
 
-Create a [Supabase](https://supabase.com/) project. In the SQL editor, run [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once (installs the `bloom_slack_init_db` RPC). Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (service role, server-only) to Vercel environment variables.
+Create a [Supabase](https://supabase.com/) project. In the SQL editor, run [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once (creates tables and indexes). Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (service role, server-only) to Vercel environment variables.
 
-7. Initialize database
+7. Verify database
 
 Visit: https://YOUR_APP.vercel.app/api/slack/setup/init
-(Runs `initDb()` / RPC — run once after the SQL file has been applied)
+(Confirms `workspace_configs` and `generation_jobs` exist — run after SQL has been applied)
 
 8. Install app to Slack workspace
 
@@ -189,13 +189,13 @@ app/
   api/slack/install/   ← starts OAuth flow
   api/slack/oauth/     ← OAuth callback
   api/slack/setup/     ← workspace configuration UI
-  api/slack/setup/init/← runs initDb (RPC creates tables — run once)
+  api/slack/setup/init/← GET verifies tables exist (see lib/db initDb)
   api/internal/
     run-generation/    ← background image generation
   page.tsx             ← landing page with Add to Slack button
 
 supabase/
-  bloom_slack_init_db.sql ← run once in Supabase SQL editor (RPC + DDL)
+  bloom_slack_init_db.sql ← run once in Supabase SQL editor (DDL only)
 
 lib/
   bloom.ts             ← Bloom API client

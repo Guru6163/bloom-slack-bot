@@ -1,9 +1,8 @@
 /**
  * app/api/slack/setup/init/route.ts
  *
- * One-shot database initialization (calls initDb → Supabase RPC).
- * Requires `supabase/bloom_slack_init_db.sql` run once in Supabase SQL editor.
- * Safe to call multiple times — DDL uses IF NOT EXISTS inside the RPC.
+ * Verifies `workspace_configs` and `generation_jobs` exist (see `initDb` in lib/db).
+ * Tables are created in the Supabase SQL editor, not by this route.
  */
 
 import { NextResponse } from "next/server";
@@ -11,15 +10,24 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 
 /**
- * Runs database migrations / table creation.
- * Intended to be visited once after deploy (see README).
+ * GET /api/slack/setup/init
+ *
+ * Returns JSON indicating whether the database tables are reachable.
  */
 export async function GET(): Promise<Response> {
   try {
     await initDb();
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "init failed";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      message: "Database ready. Both tables exist.",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 }
