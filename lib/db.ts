@@ -2,15 +2,37 @@
  * lib/db.ts
  *
  * All database queries for the Bloom Slack Bot.
- * Uses Vercel Postgres (@vercel/postgres).
+ * Uses Supabase (Postgres) via @supabase/supabase-js with the service role key.
  *
  * Tables:
  *   workspace_configs  — Slack workspace + Bloom API key + brand
  *   generation_jobs    — image generation jobs and their status
+ *
+ * DDL: run `supabase/bloom_slack_init_db.sql` once in the Supabase SQL editor so
+ * `initDb()` can call the `bloom_slack_init_db` RPC to create tables and indexes.
  */
 
 import { randomBytes, randomUUID } from "crypto";
-import { sql } from "@vercel/postgres";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+let supabaseClient: SupabaseClient | undefined;
+
+/**
+ * Returns the shared Supabase client (service role), equivalent to:
+ * `createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)`.
+ * Instantiation is lazy so `next build` can analyze routes when those env vars are absent.
+ */
+function supabase(): SupabaseClient {
+  if (!supabaseClient) {
+    const url = process.env.SUPABASE_URL?.trim();
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!url || !key) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    }
+    supabaseClient = createClient(url, key);
+  }
+  return supabaseClient;
+}
 
 export interface WorkspaceConfig {
   team_id: string;
@@ -140,58 +162,18 @@ const emptyWorkspace = (team_id: string): WorkspaceConfig => ({
 /**
  * Creates the database tables if they don't exist.
  * Call this once during app initialization or via a setup endpoint.
- * Safe to run multiple times — uses IF NOT EXISTS.
+ * Safe to run multiple times — uses IF NOT EXISTS inside the DB function.
+ *
+ * Requires `supabase/bloom_slack_init_db.sql` to have been run once in the
+ * Supabase SQL editor (installs the `bloom_slack_init_db` RPC).
  */
 export async function initDb(): Promise<void> {
-  await sql`
-    CREATE TABLE IF NOT EXISTS workspace_configs (
-      team_id TEXT PRIMARY KEY,
-      team_name TEXT NOT NULL DEFAULT '',
-      bot_token TEXT NOT NULL DEFAULT '',
-      bloom_api_key TEXT NOT NULL DEFAULT '',
-      brand_id TEXT NOT NULL DEFAULT '',
-      brand_name TEXT NOT NULL DEFAULT '',
-      brand_session_id TEXT NOT NULL DEFAULT '',
-      setup_completed BOOLEAN NOT NULL DEFAULT FALSE,
-      setup_token TEXT,
-      bot_user_id TEXT
-    )
-  `;
-
-  await sql`
-    CREATE TABLE IF NOT EXISTS generation_jobs (
-      id UUID PRIMARY KEY,
-      team_id TEXT NOT NULL,
-      channel_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      thread_ts TEXT,
-      message_ts TEXT,
-      prompt TEXT NOT NULL,
-      aspect_ratio TEXT NOT NULL,
-      variants INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL DEFAULT 'pending',
-      image_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
-      current_image_index INTEGER NOT NULL DEFAULT 0,
-      error TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_workspace_configs_setup_token
-    ON workspace_configs (setup_token)
-    WHERE setup_token IS NOT NULL
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_generation_jobs_team_id
-    ON generation_jobs (team_id)
-  `;
-
-  await sql`
-    ALTER TABLE workspace_configs
-    ADD COLUMN IF NOT EXISTS installer_user_id TEXT
-  `;
+  const { error } = await supabase().rpc("bloom_slack_init_db");
+  if (error) {
+    throw new Error(
+      `${error.message}. If the function is missing, run supabase/bloom_slack_init_db.sql in the Supabase SQL editor.`
+    );
+  }
 }
 
 /**
@@ -201,30 +183,22 @@ export async function initDb(): Promise<void> {
 export async function getWorkspaceConfig(
   teamId: string
 ): Promise<WorkspaceConfig | null> {
-  const result = await sql`
-    SELECT
-      team_id,
-      team_name,
-      bot_token,
-      bloom_api_key,
-      brand_id,
-      brand_name,
-      brand_session_id,
-      setup_completed,
-      setup_token,
-      bot_user_id,
-      installer_user_id
-    FROM workspace_configs
-    WHERE team_id = ${teamId}
-  `;
+  const { data, error } = await supabase()
+    .from("workspace_configs")
+    .select(
+      "team_id, team_name, bot_token, bloom_api_key, brand_id, brand_name, brand_session_id, setup_completed, setup_token, bot_user_id, installer_user_id"
+    )
+    .eq("team_id", teamId)
+    .maybeSingle();
 
-  if (result.rows.length === 0) {
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
     return null;
   }
 
-  return mapWorkspaceRow(
-    result.rows[0] as Parameters<typeof mapWorkspaceRow>[0]
-  );
+  return mapWorkspaceRow(data as Parameters<typeof mapWorkspaceRow>[0]);
 }
 
 /**
@@ -257,45 +231,26 @@ export async function upsertWorkspaceConfig(
         : base.installer_user_id,
   };
 
-  await sql`
-    INSERT INTO workspace_configs (
-      team_id,
-      team_name,
-      bot_token,
-      bloom_api_key,
-      brand_id,
-      brand_name,
-      brand_session_id,
-      setup_completed,
-      setup_token,
-      bot_user_id,
-      installer_user_id
-    )
-    VALUES (
-      ${merged.team_id},
-      ${merged.team_name},
-      ${merged.bot_token},
-      ${merged.bloom_api_key},
-      ${merged.brand_id},
-      ${merged.brand_name},
-      ${merged.brand_session_id},
-      ${merged.setup_completed},
-      ${merged.setup_token},
-      ${merged.bot_user_id},
-      ${merged.installer_user_id}
-    )
-    ON CONFLICT (team_id) DO UPDATE SET
-      team_name = EXCLUDED.team_name,
-      bot_token = EXCLUDED.bot_token,
-      bloom_api_key = EXCLUDED.bloom_api_key,
-      brand_id = EXCLUDED.brand_id,
-      brand_name = EXCLUDED.brand_name,
-      brand_session_id = EXCLUDED.brand_session_id,
-      setup_completed = EXCLUDED.setup_completed,
-      setup_token = EXCLUDED.setup_token,
-      bot_user_id = EXCLUDED.bot_user_id,
-      installer_user_id = EXCLUDED.installer_user_id
-  `;
+  const { error } = await supabase().from("workspace_configs").upsert(
+    {
+      team_id: merged.team_id,
+      team_name: merged.team_name,
+      bot_token: merged.bot_token,
+      bloom_api_key: merged.bloom_api_key,
+      brand_id: merged.brand_id,
+      brand_name: merged.brand_name,
+      brand_session_id: merged.brand_session_id,
+      setup_completed: merged.setup_completed,
+      setup_token: merged.setup_token,
+      bot_user_id: merged.bot_user_id,
+      installer_user_id: merged.installer_user_id,
+    },
+    { onConflict: "team_id" }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 /**
@@ -306,30 +261,23 @@ export async function upsertWorkspaceConfig(
 export async function getWorkspaceBySetupToken(
   token: string
 ): Promise<WorkspaceConfig | null> {
-  const result = await sql`
-    SELECT
-      team_id,
-      team_name,
-      bot_token,
-      bloom_api_key,
-      brand_id,
-      brand_name,
-      brand_session_id,
-      setup_completed,
-      setup_token,
-      bot_user_id,
-      installer_user_id
-    FROM workspace_configs
-    WHERE setup_token = ${token}
-  `;
+  const { data, error } = await supabase()
+    .from("workspace_configs")
+    .select(
+      "team_id, team_name, bot_token, bloom_api_key, brand_id, brand_name, brand_session_id, setup_completed, setup_token, bot_user_id, installer_user_id"
+    )
+    .eq("setup_token", token)
+    .limit(1)
+    .maybeSingle();
 
-  if (result.rows.length === 0) {
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
     return null;
   }
 
-  return mapWorkspaceRow(
-    result.rows[0] as Parameters<typeof mapWorkspaceRow>[0]
-  );
+  return mapWorkspaceRow(data as Parameters<typeof mapWorkspaceRow>[0]);
 }
 
 /**
@@ -340,12 +288,17 @@ export async function getWorkspaceBySetupToken(
 export async function generateSetupToken(teamId: string): Promise<string> {
   const token = randomBytes(32).toString("hex");
 
-  await sql`
-    INSERT INTO workspace_configs (team_id, setup_token)
-    VALUES (${teamId}, ${token})
-    ON CONFLICT (team_id) DO UPDATE SET
-      setup_token = EXCLUDED.setup_token
-  `;
+  const { error } = await supabase().from("workspace_configs").upsert(
+    {
+      team_id: teamId,
+      setup_token: token,
+    },
+    { onConflict: "team_id" }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
 
   return token;
 }
@@ -366,36 +319,24 @@ export async function createJob(params: {
   const id = randomUUID();
   const thread_ts = params.thread_ts ?? null;
 
-  await sql`
-    INSERT INTO generation_jobs (
-      id,
-      team_id,
-      channel_id,
-      user_id,
-      thread_ts,
-      prompt,
-      aspect_ratio,
-      variants,
-      status,
-      image_urls,
-      current_image_index,
-      error
-    )
-    VALUES (
-      ${id},
-      ${params.team_id},
-      ${params.channel_id},
-      ${params.user_id},
-      ${thread_ts},
-      ${params.prompt},
-      ${params.aspect_ratio},
-      ${params.variants},
-      'pending',
-      '[]'::jsonb,
-      0,
-      NULL
-    )
-  `;
+  const { error } = await supabase().from("generation_jobs").insert({
+    id,
+    team_id: params.team_id,
+    channel_id: params.channel_id,
+    user_id: params.user_id,
+    thread_ts,
+    prompt: params.prompt,
+    aspect_ratio: params.aspect_ratio,
+    variants: params.variants,
+    status: "pending",
+    image_urls: [],
+    current_image_index: 0,
+    error: null,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
 
   return id;
 }
@@ -405,31 +346,22 @@ export async function createJob(params: {
  * Returns null if not found.
  */
 export async function getJob(jobId: string): Promise<GenerationJob | null> {
-  const result = await sql`
-    SELECT
-      id,
-      team_id,
-      channel_id,
-      user_id,
-      thread_ts,
-      message_ts,
-      prompt,
-      aspect_ratio,
-      variants,
-      status,
-      image_urls,
-      current_image_index,
-      error,
-      created_at
-    FROM generation_jobs
-    WHERE id = ${jobId}
-  `;
+  const { data, error } = await supabase()
+    .from("generation_jobs")
+    .select(
+      "id, team_id, channel_id, user_id, thread_ts, message_ts, prompt, aspect_ratio, variants, status, image_urls, current_image_index, error, created_at"
+    )
+    .eq("id", jobId)
+    .maybeSingle();
 
-  if (result.rows.length === 0) {
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
     return null;
   }
 
-  return mapJobRow(result.rows[0] as Parameters<typeof mapJobRow>[0]);
+  return mapJobRow(data as Parameters<typeof mapJobRow>[0]);
 }
 
 /**
@@ -464,22 +396,24 @@ export async function updateJob(
     error: fields.error !== undefined ? fields.error : current.error,
   };
 
-  const imageUrlsJson = JSON.stringify(merged.image_urls);
+  const { error } = await supabase()
+    .from("generation_jobs")
+    .update({
+      channel_id: merged.channel_id,
+      user_id: merged.user_id,
+      thread_ts: merged.thread_ts,
+      message_ts: merged.message_ts,
+      prompt: merged.prompt,
+      aspect_ratio: merged.aspect_ratio,
+      variants: merged.variants,
+      status: merged.status,
+      image_urls: merged.image_urls,
+      current_image_index: merged.current_image_index,
+      error: merged.error,
+    })
+    .eq("id", jobId);
 
-  await sql`
-    UPDATE generation_jobs
-    SET
-      channel_id = ${merged.channel_id},
-      user_id = ${merged.user_id},
-      thread_ts = ${merged.thread_ts},
-      message_ts = ${merged.message_ts},
-      prompt = ${merged.prompt},
-      aspect_ratio = ${merged.aspect_ratio},
-      variants = ${merged.variants},
-      status = ${merged.status},
-      image_urls = ${imageUrlsJson}::jsonb,
-      current_image_index = ${merged.current_image_index},
-      error = ${merged.error}
-    WHERE id = ${jobId}
-  `;
+  if (error) {
+    throw new Error(error.message);
+  }
 }

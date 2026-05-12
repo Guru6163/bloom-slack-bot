@@ -23,7 +23,7 @@ Aspect ratio aliases:
 
 ## Run locally
 
-Prerequisites: **Node.js 20+**, **npm**, **PostgreSQL** (local Docker or hosted), a [Slack app](https://api.slack.com/apps), and a [Bloom API key](https://www.trybloom.ai/developers).
+Prerequisites: **Node.js 20+**, **npm**, a [Supabase](https://supabase.com/) project, a [Slack app](https://api.slack.com/apps), and a [Bloom API key](https://www.trybloom.ai/developers).
 
 Slack’s servers **cannot** call `http://localhost:3000`. For full Slack testing you need a **public HTTPS URL** (e.g. [ngrok](https://ngrok.com/) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/)) and must set **`NEXT_PUBLIC_APP_URL`** to that URL. You can still run the app and init the DB on localhost without Slack.
 
@@ -35,21 +35,11 @@ cd bloom-slack-bot
 npm install
 ```
 
-### 2. PostgreSQL
+### 2. Supabase project
 
-Set **`POSTGRES_URL`** to any connection string your machine can reach.
-
-Example with Docker:
-
-```bash
-docker run --name bloom-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=bloom_slack -p 5432:5432 -d postgres:16
-```
-
-Then use:
-
-`POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/bloom_slack`
-
-(Or use Neon, Supabase, Vercel Postgres, etc.)
+1. Create a project at [supabase.com](https://supabase.com/).
+2. **Project Settings → API**: copy **Project URL** (`SUPABASE_URL`) and **service_role** key (`SUPABASE_SERVICE_ROLE_KEY`). Use the **service role** key only on the server (never in the browser).
+3. **SQL → New query**: paste and run the contents of [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once. That creates the `bloom_slack_init_db()` RPC used by `initDb()` to create tables and indexes.
 
 ### 3. Environment variables
 
@@ -64,7 +54,8 @@ cp .env.example .env.local
 | `SLACK_SIGNING_SECRET` | Same — verifies incoming Slack requests |
 | `INTERNAL_SECRET` | Random secret; protects `POST /api/internal/run-generation` (Bearer token). Generate e.g. `openssl rand -hex 32` |
 | `NEXT_PUBLIC_APP_URL` | Public base URL **without** a trailing slash. Omit or use `http://localhost:3000` for defaults; **with Slack + tunnel**, use `https://YOUR-TUNNEL.example` |
-| `POSTGRES_URL` | Postgres connection string |
+| `SUPABASE_URL` | Supabase project URL (Settings → API → Project URL) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase **service_role** secret (server only) |
 
 OAuth, setup links, and background generation all resolve the app base URL via `NEXT_PUBLIC_APP_URL` (see `lib/app-url.ts`).
 
@@ -107,6 +98,8 @@ Open [http://localhost:3000](http://localhost:3000) for the landing page; **Add 
 
 ### 7. Initialize the database (once)
 
+After running `supabase/bloom_slack_init_db.sql` in the Supabase SQL editor (step 2), call the init endpoint so tables are created via the `bloom_slack_init_db` RPC:
+
 ```bash
 curl -sS "http://localhost:3000/api/slack/setup/init"
 # or, if using a tunnel:
@@ -129,7 +122,7 @@ Expect `{ "ok": true }`. Safe to call more than once.
 | OAuth redirect mismatch | Slack **Redirect URLs** must exactly match `{APP_URL}/api/slack/oauth` |
 | Slash command never hits the server | Request URL still points at localhost, or tunnel stopped |
 | Generation issues | Missing/wrong `INTERNAL_SECRET`, or wrong `NEXT_PUBLIC_APP_URL` so the internal `fetch` to `/api/internal/run-generation` fails |
-| DB errors | Bad `POSTGRES_URL`, database not running, or `/api/slack/setup/init` not run |
+| DB errors | Missing or wrong `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`, SQL file not run in Supabase, or `/api/slack/setup/init` not called |
 
 ## Deploy to Vercel
 
@@ -164,16 +157,17 @@ SLACK_CLIENT_SECRET=
 SLACK_SIGNING_SECRET=
 INTERNAL_SECRET=any-random-string
 NEXT_PUBLIC_APP_URL=https://YOUR_APP.vercel.app
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-6. Add Vercel Postgres
+6. Supabase
 
-Vercel Dashboard → Storage → Create Postgres Database
-POSTGRES_URL is set automatically
+Create a [Supabase](https://supabase.com/) project. In the SQL editor, run [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once (installs the `bloom_slack_init_db` RPC). Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (service role, server-only) to Vercel environment variables.
 
 7. Initialize database
 
 Visit: https://YOUR_APP.vercel.app/api/slack/setup/init
-(Creates tables — run once)
+(Runs `initDb()` / RPC — run once after the SQL file has been applied)
 
 8. Install app to Slack workspace
 
@@ -195,15 +189,18 @@ app/
   api/slack/install/   ← starts OAuth flow
   api/slack/oauth/     ← OAuth callback
   api/slack/setup/     ← workspace configuration UI
-  api/slack/setup/init/← creates DB tables (run once)
+  api/slack/setup/init/← runs initDb (RPC creates tables — run once)
   api/internal/
     run-generation/    ← background image generation
   page.tsx             ← landing page with Add to Slack button
 
+supabase/
+  bloom_slack_init_db.sql ← run once in Supabase SQL editor (RPC + DDL)
+
 lib/
   bloom.ts             ← Bloom API client
   slack.ts             ← Slack API + Block Kit builders
-  db.ts                ← Postgres queries
+  db.ts                ← Supabase Postgres client
   utils.ts             ← signature verification + command parser
   internal-auth.ts     ← protects internal routes
   app-url.ts           ← resolves app base URL

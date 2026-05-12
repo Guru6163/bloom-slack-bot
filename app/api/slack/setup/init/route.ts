@@ -1,8 +1,9 @@
 /**
  * app/api/slack/setup/init/route.ts
  *
- * One-shot database initialization (creates tables via initDb).
- * Safe to call multiple times — uses IF NOT EXISTS.
+ * One-shot database initialization (calls initDb → Supabase RPC).
+ * Requires `supabase/bloom_slack_init_db.sql` run once in Supabase SQL editor.
+ * Safe to call multiple times — DDL uses IF NOT EXISTS inside the RPC.
  */
 
 import { NextResponse } from "next/server";
