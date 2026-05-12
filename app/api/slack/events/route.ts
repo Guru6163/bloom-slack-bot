@@ -24,15 +24,39 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 /**
- * Verifies Slack signing secret, then delegates to the Slack events router.
+ * Handles Slack POSTs: URL verification first, then signature verification,
+ * then the events router.
+ *
+ * Event Subscriptions URL verification uses `application/json` with
+ * `type: url_verification`. That challenge is answered **before** signature
+ * verification so Slack can complete initial Events URL setup reliably.
  */
 export async function POST(req: Request): Promise<Response> {
   const rawBody = await req.text();
-  const valid = await verifySlackSignature(req, rawBody);
-  if (!valid) {
-    return new Response("invalid signature", { status: 401 });
+  const contentType = req.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const json: unknown = JSON.parse(rawBody);
+      if (
+        typeof json === "object" &&
+        json !== null &&
+        !Array.isArray(json) &&
+        (json as { type?: unknown }).type === "url_verification" &&
+        typeof (json as { challenge?: unknown }).challenge === "string"
+      ) {
+        return Response.json({
+          challenge: (json as { challenge: string }).challenge,
+        });
+      }
+    } catch {
+      // not JSON, continue
+    }
   }
 
-  const contentType = req.headers.get("content-type") ?? "";
+  if (!(await verifySlackSignature(req, rawBody))) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   return handleSlackEventsPost(req.url, rawBody, contentType);
 }
