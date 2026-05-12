@@ -23,6 +23,8 @@ export interface WorkspaceConfig {
   setup_completed: boolean;
   setup_token: string | null;
   bot_user_id: string | null;
+  /** Slack user id of the installer (OAuth); used for setup completion DMs. */
+  installer_user_id: string | null;
 }
 
 export interface GenerationJob {
@@ -53,6 +55,7 @@ function mapWorkspaceRow(row: {
   setup_completed: boolean;
   setup_token: string | null;
   bot_user_id: string | null;
+  installer_user_id: string | null;
 }): WorkspaceConfig {
   return { ...row };
 }
@@ -128,6 +131,7 @@ const emptyWorkspace = (team_id: string): WorkspaceConfig => ({
   setup_completed: false,
   setup_token: null,
   bot_user_id: null,
+  installer_user_id: null,
 });
 
 /**
@@ -180,6 +184,11 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_generation_jobs_team_id
     ON generation_jobs (team_id)
   `;
+
+  await sql`
+    ALTER TABLE workspace_configs
+    ADD COLUMN IF NOT EXISTS installer_user_id TEXT
+  `;
 }
 
 /**
@@ -200,7 +209,8 @@ export async function getWorkspaceConfig(
       brand_session_id,
       setup_completed,
       setup_token,
-      bot_user_id
+      bot_user_id,
+      installer_user_id
     FROM workspace_configs
     WHERE team_id = ${teamId}
   `;
@@ -238,6 +248,10 @@ export async function upsertWorkspaceConfig(
       config.setup_token !== undefined ? config.setup_token : base.setup_token,
     bot_user_id:
       config.bot_user_id !== undefined ? config.bot_user_id : base.bot_user_id,
+    installer_user_id:
+      config.installer_user_id !== undefined
+        ? config.installer_user_id
+        : base.installer_user_id,
   };
 
   await sql`
@@ -251,7 +265,8 @@ export async function upsertWorkspaceConfig(
       brand_session_id,
       setup_completed,
       setup_token,
-      bot_user_id
+      bot_user_id,
+      installer_user_id
     )
     VALUES (
       ${merged.team_id},
@@ -263,7 +278,8 @@ export async function upsertWorkspaceConfig(
       ${merged.brand_session_id},
       ${merged.setup_completed},
       ${merged.setup_token},
-      ${merged.bot_user_id}
+      ${merged.bot_user_id},
+      ${merged.installer_user_id}
     )
     ON CONFLICT (team_id) DO UPDATE SET
       team_name = EXCLUDED.team_name,
@@ -274,7 +290,8 @@ export async function upsertWorkspaceConfig(
       brand_session_id = EXCLUDED.brand_session_id,
       setup_completed = EXCLUDED.setup_completed,
       setup_token = EXCLUDED.setup_token,
-      bot_user_id = EXCLUDED.bot_user_id
+      bot_user_id = EXCLUDED.bot_user_id,
+      installer_user_id = EXCLUDED.installer_user_id
   `;
 }
 
@@ -297,7 +314,8 @@ export async function getWorkspaceBySetupToken(
       brand_session_id,
       setup_completed,
       setup_token,
-      bot_user_id
+      bot_user_id,
+      installer_user_id
     FROM workspace_configs
     WHERE setup_token = ${token}
   `;
