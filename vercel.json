@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/internal/run-generation/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}
