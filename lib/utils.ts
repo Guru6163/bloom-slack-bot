@@ -118,7 +118,7 @@ export async function verifySlackSignature(
 }
 
 /**
- * Parses a /bloom-gen slash command text into structured parts.
+ * Parses a /bloom-bot slash command text into structured parts.
  *
  * Supported commands:
  *   generate {prompt} {ratio}   → { action: 'generate', prompt, ratio }

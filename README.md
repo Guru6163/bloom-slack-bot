@@ -7,16 +7,16 @@ Generate on-brand images in Slack with a single slash command.
 1. Install the app to your Slack workspace
 2. Connect your Bloom API key via the setup link
 3. Select your brand
-4. Type /bloom-gen generate summer sale hero 16:9
+4. Type /bloom-bot generate summer sale hero 16:9
 5. Bloom posts the image back in your channel
 
 ## Commands
 
-/bloom-gen generate {prompt} {ratio}  — Generate images
-/bloom-gen setup                      — Get setup link
-/bloom-gen brands                     — List your brands
-/bloom-gen credits                    — Check credit balance
-/bloom-gen help                       — Show all commands
+/bloom-bot generate {prompt} {ratio}  — Generate images
+/bloom-bot setup                      — Get setup link
+/bloom-bot brands                     — List your brands
+/bloom-bot credits                    — Check credit balance
+/bloom-bot help                       — Show all commands
 
 Aspect ratio aliases:
   square = 1:1 | landscape = 16:9 | portrait = 9:16 | story = 9:16
@@ -70,7 +70,7 @@ Create an app at [api.slack.com/apps](https://api.slack.com/apps) → **Create N
 - Local only: `http://localhost:3000/api/slack/oauth`
 - With tunnel: `https://YOUR-TUNNEL/api/slack/oauth`
 
-**Slash Commands** → command `/bloom-gen` → **Request URL**:
+**Slash Commands** → command `/bloom-bot` → **Request URL**:
 
 - With tunnel: `https://YOUR-TUNNEL/api/slack/events`
 
@@ -112,7 +112,7 @@ Expect `{ "ok": true, "message": "Database ready. Both tables exist." }`. Safe t
 
 1. Open `/api/slack/install` (via localhost or your tunnel, matching how you configured Slack).
 2. Finish OAuth; check the installer’s Slack DM for the **setup** link (Bloom API key + brand).
-3. In Slack: `/bloom-gen help`
+3. In Slack: `/bloom-bot help`
 
 ### Troubleshooting
 
@@ -143,7 +143,7 @@ Add these Bot Token Scopes:
   commands, chat:write, chat:write.public, files:write
 
 Add slash command:
-  Command: /bloom-gen
+  Command: /bloom-bot
   Request URL: https://YOUR_APP.vercel.app/api/slack/events
 
 4. Deploy to Vercel
@@ -180,7 +180,7 @@ Enter your Bloom API key and select your brand.
 
 10. Test it
 
-/bloom-gen generate summer sale hero banner 16:9
+/bloom-bot generate summer sale hero banner 16:9
 
 ## Project structure
 

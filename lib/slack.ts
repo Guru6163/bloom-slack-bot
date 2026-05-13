@@ -350,7 +350,7 @@ export function buildErrorBlocks(
 }
 
 /**
- * Help message shown for /bloom-gen help.
+ * Help message shown for /bloom-bot help.
  * Lists all available commands with examples.
  */
 export function buildHelpBlocks(): unknown[] {
@@ -368,7 +368,7 @@ export function buildHelpBlocks(): unknown[] {
       text: {
         type: "mrkdwn",
         text:
-          "Use `/bloom-gen` to generate images that match your connected Bloom brand.",
+          "Use `/bloom-bot` to generate images that match your connected Bloom brand.",
       },
     },
     { type: "divider" },
@@ -377,15 +377,15 @@ export function buildHelpBlocks(): unknown[] {
       text: {
         type: "mrkdwn",
         text: [
-          "*`help`*",
-          "Show this message.",
+          "*Commands*",
+          "`/bloom-bot generate {prompt} {ratio}`",
+          "`/bloom-bot setup`",
+          "`/bloom-bot brands`",
+          "`/bloom-bot credits`",
+          "`/bloom-bot help`",
           "",
-          "*`generate <prompt> <ratio>`*",
-          "Start a new generation. `ratio` must be one of: `1:1`, `4:5`, `9:16`, `16:9` (and other ratios your workspace supports).",
-          "_Example:_ `/bloom-gen generate sunset over the ocean 16:9`",
-          "",
-          "*`status`*",
-          "Check setup / connection status (if implemented).",
+          "For `generate`, `ratio` must be one of: `1:1`, `4:5`, `9:16`, `16:9` (and other ratios your workspace supports). Ratio aliases: `square`, `landscape`, `portrait`, `story`.",
+          "_Example:_ `/bloom-bot generate sunset over the ocean 16:9`",
         ].join("\n"),
       },
     },
@@ -394,7 +394,7 @@ export function buildHelpBlocks(): unknown[] {
       elements: [
         {
           type: "mrkdwn",
-          text: "Docs: <https://www.trybloom.ai/api/v1/docs|Bloom API> · Slash command: `/bloom-gen`",
+          text: "Docs: <https://www.trybloom.ai/api/v1/docs|Bloom API> · Slash command: `/bloom-bot`",
         },
       ],
     },

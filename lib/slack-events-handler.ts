@@ -112,7 +112,7 @@ async function handleUrlVerification(body: unknown): Promise<Response> {
   return jsonResponse({ challenge: body.challenge });
 }
 
-/** Handles `/bloom-gen generate …` after workspace checks pass. */
+/** Handles `/bloom-bot generate …` after workspace checks pass. */
 async function handleSlashGenerate(
   workspace: NonNullable<Awaited<ReturnType<typeof getWorkspaceConfig>>>,
   parsed: Extract<ParsedCommand, { action: "generate" }>,
@@ -149,7 +149,7 @@ async function handleSlashGenerate(
 }
 
 /**
- * Handles /bloom-gen slash commands.
+ * Handles /bloom-bot slash commands.
  *
  * Supported subcommands:
  *
@@ -165,9 +165,9 @@ async function handleSlashGenerate(
  */
 async function handleSlashCommand(params: URLSearchParams): Promise<Response> {
   const command = (params.get("command") ?? "").trim();
-  if (command !== "/bloom-gen") {
+  if (command !== "/bloom-bot") {
     return ephemeralPayload(
-      "Unknown command. Use `/bloom-gen help` for supported commands."
+      "Unknown command. Use `/bloom-bot help` for supported commands."
     );
   }
 
@@ -228,7 +228,7 @@ async function handleSlashCommand(params: URLSearchParams): Promise<Response> {
       const key = parsed.apiKey?.trim() ?? "";
       if (!key) {
         return ephemeralPayload(
-          "Usage: `/bloom-gen setup <your_bloom_api_key>`"
+          "Usage: `/bloom-bot setup <your_bloom_api_key>`"
         );
       }
       try {
