@@ -102,7 +102,7 @@ export async function POST(req: Request): Promise<Response> {
       setup_token: null,
     });
 
-    const installerId = workspace.installer_user_id?.trim();
+    const installerId = workspace.installed_by?.trim();
     if (installerId && workspace.bot_token) {
       try {
         const dm = await openDm(workspace.bot_token, installerId);

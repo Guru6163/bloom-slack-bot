@@ -46,7 +46,7 @@ export interface WorkspaceConfig {
   setup_token: string | null;
   bot_user_id: string | null;
   /** Slack user id of the installer (OAuth); used for setup completion DMs. */
-  installer_user_id: string | null;
+  installed_by: string | null;
 }
 
 export interface GenerationJob {
@@ -78,7 +78,7 @@ function mapWorkspaceRow(row: {
   setup_completed: boolean;
   setup_token: string | null;
   bot_user_id: string | null;
-  installer_user_id: string | null;
+  installed_by: string | null;
 }): WorkspaceConfig {
   return { ...row };
 }
@@ -156,7 +156,7 @@ const emptyWorkspace = (team_id: string): WorkspaceConfig => ({
   setup_completed: false,
   setup_token: null,
   bot_user_id: null,
-  installer_user_id: null,
+  installed_by: null,
 });
 
 /**
@@ -196,7 +196,7 @@ export async function getWorkspaceConfig(
   const { data, error } = await supabase()
     .from("workspace_configs")
     .select(
-      "team_id, team_name, bot_token, bloom_api_key, brand_id, brand_name, brand_session_id, setup_completed, setup_token, bot_user_id, installer_user_id"
+      "team_id, team_name, bot_token, bloom_api_key, brand_id, brand_name, brand_session_id, setup_completed, setup_token, bot_user_id, installed_by"
     )
     .eq("team_id", teamId)
     .maybeSingle();
@@ -235,10 +235,10 @@ export async function upsertWorkspaceConfig(
       config.setup_token !== undefined ? config.setup_token : base.setup_token,
     bot_user_id:
       config.bot_user_id !== undefined ? config.bot_user_id : base.bot_user_id,
-    installer_user_id:
-      config.installer_user_id !== undefined
-        ? config.installer_user_id
-        : base.installer_user_id,
+    installed_by:
+      config.installed_by !== undefined
+        ? config.installed_by
+        : base.installed_by,
   };
 
   const { error } = await supabase().from("workspace_configs").upsert(
@@ -253,7 +253,7 @@ export async function upsertWorkspaceConfig(
       setup_completed: merged.setup_completed,
       setup_token: merged.setup_token,
       bot_user_id: merged.bot_user_id,
-      installer_user_id: merged.installer_user_id,
+      installed_by: merged.installed_by,
     },
     { onConflict: "team_id" }
   );
@@ -274,7 +274,7 @@ export async function getWorkspaceBySetupToken(
   const { data, error } = await supabase()
     .from("workspace_configs")
     .select(
-      "team_id, team_name, bot_token, bloom_api_key, brand_id, brand_name, brand_session_id, setup_completed, setup_token, bot_user_id, installer_user_id"
+      "team_id, team_name, bot_token, bloom_api_key, brand_id, brand_name, brand_session_id, setup_completed, setup_token, bot_user_id, installed_by"
     )
     .eq("setup_token", token)
     .limit(1)

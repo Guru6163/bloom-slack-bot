@@ -179,7 +179,7 @@ export async function GET(req: Request): Promise<Response> {
       team_name: teamName,
       bot_token: accessToken,
       bot_user_id: botUserId,
-      installer_user_id: installerUserId ?? null,
+      installed_by: installerUserId ?? null,
     });
 
     const setupToken = await generateSetupToken(teamId);

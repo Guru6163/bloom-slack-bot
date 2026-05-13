@@ -39,4 +39,4 @@ CREATE INDEX IF NOT EXISTS idx_generation_jobs_team_id
   ON generation_jobs (team_id);
 
 ALTER TABLE workspace_configs
-  ADD COLUMN IF NOT EXISTS installer_user_id TEXT;
+  ADD COLUMN IF NOT EXISTS installed_by TEXT;
