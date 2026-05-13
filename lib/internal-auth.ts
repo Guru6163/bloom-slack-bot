@@ -8,40 +8,17 @@
  * Uses a Bearer token from INTERNAL_SECRET env var.
  */
 
-/** Constant-time string equality for comparing secrets. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  let out = 0;
-  for (let i = 0; i < a.length; i++) {
-    out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return out === 0;
-}
-
 /**
  * Returns true if the request has a valid internal Bearer token.
  * Routes protected by this should return 401 if it returns false.
  */
 export function isInternalRequest(req: Request): boolean {
-  const secret = process.env.INTERNAL_SECRET;
-  if (!secret) {
+  const auth = req.headers.get("Authorization");
+  if (!auth) {
     return false;
   }
-
-  const auth = req.headers.get("authorization") ?? "";
-  const prefix = "Bearer ";
-  if (!auth.startsWith(prefix)) {
-    return false;
-  }
-
-  const token = auth.slice(prefix.length).trim();
-  if (!token) {
-    return false;
-  }
-
-  return timingSafeEqual(token, secret);
+  const token = auth.replace("Bearer ", "").trim();
+  return token === process.env.INTERNAL_SECRET;
 }
 
 /**

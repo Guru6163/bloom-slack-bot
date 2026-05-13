@@ -16,11 +16,11 @@ import {
   updateJob,
   upsertWorkspaceConfig,
 } from "@/lib/db";
-import { getInternalAuthHeader } from "@/lib/internal-auth";
 import {
   buildHelpBlocks,
   buildLoadingBlocks,
   buildResultBlocks,
+  postMessage,
   updateMessage,
 } from "@/lib/slack";
 import { parseSlashCommand, type ParsedCommand } from "@/lib/utils";
@@ -46,17 +46,21 @@ function slackInteractionAck(): Response {
   });
 }
 
-/** Kicks off background generation without awaiting the internal HTTP call. */
+/** Fire-and-forget internal generation (do not await). */
 function fireRunGeneration(jobId: string): void {
-  const url = `${getAppUrl()}/api/internal/run-generation`;
-  void fetch(url, {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://bloom-slack-bot.vercel.app";
+
+  fetch(`${appUrl}/api/internal/run-generation`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: getInternalAuthHeader(),
+      Authorization: `Bearer ${process.env.INTERNAL_SECRET}`,
     },
-    body: JSON.stringify({ job_id: jobId }),
-  }).catch(() => {});
+    body: JSON.stringify({ jobId }),
+  }).catch((err) => {
+    console.error("Failed to fire generation:", err);
+  });
 }
 
 /** Resolves a setup URL for a workspace, minting a token if needed. */
@@ -131,6 +135,13 @@ async function handleSlashGenerate(
     );
   }
 
+  const messageTs = await postMessage(
+    workspace.bot_token,
+    channelId,
+    buildLoadingBlocks(parsed.prompt, parsed.ratio, userId),
+    threadTs
+  );
+
   const jobId = await createJob({
     team_id: workspace.team_id,
     channel_id: channelId,
@@ -141,10 +152,19 @@ async function handleSlashGenerate(
     thread_ts: threadTs,
   });
 
+  await updateJob(jobId, { message_ts: messageTs });
+
   fireRunGeneration(jobId);
 
-  return ephemeralPayload(
-    "⏳ Generating your image... it will appear shortly."
+  return new Response(
+    JSON.stringify({
+      response_type: "ephemeral",
+      text: "⏳ Generating your image... check the channel shortly.",
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
   );
 }
 
@@ -154,8 +174,8 @@ async function handleSlashGenerate(
  * Supported subcommands:
  *
  * generate {prompt} {ratio}:
- *   Create job, fire background generation (channel loading is posted in the
- *   generation handler), return ephemeral JSON immediately.
+ *   Post loading message → create job → save message_ts → fire internal
+ *   generation (no await) → return ephemeral JSON immediately.
  *
  * setup {api_key}: ephemeral with setup link.
  * brands / credits: ephemeral with API results.

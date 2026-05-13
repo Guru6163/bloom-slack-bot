@@ -126,61 +126,147 @@ Expect `{ "ok": true, "message": "Database ready. Both tables exist." }`. Safe t
 
 ## Deploy to Vercel
 
-1. Clone this repo
+End-to-end production setup: Slack app → Vercel → Supabase (this repo uses **Supabase** for Postgres, not Vercel Postgres).
 
+### Step 1 — Clone and install
+
+```bash
 git clone https://github.com/Guru6163/bloom-slack-bot
 cd bloom-slack-bot
-
-2. Install dependencies
-
 npm install
+```
 
-3. Create a Slack App
+### Step 2 — Create Slack app
 
-Go to api.slack.com/apps → Create New App → From Scratch
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**.
+2. **App name:** Bloom (or any name you prefer).
+3. **Workspace:** pick your test workspace.
 
-Add these Bot Token Scopes:
-  commands, chat:write, chat:write.public, files:write
+### Step 3 — Configure Slack app
 
-Add slash command:
-  Command: /bloom-bot
-  Request URL: https://YOUR_APP.vercel.app/api/slack/events
+**OAuth & Permissions** → **Scopes** → **Bot Token Scopes** — add:
 
-4. Deploy to Vercel
+- `commands`
+- `chat:write`
+- `chat:write.public`
+- `files:write`
 
+**Slash Commands** → **Create New Command**:
+
+| Field | Value |
+|--------|--------|
+| **Command** | `/bloom-bot` |
+| **Request URL** | `https://YOUR_APP.vercel.app/api/slack/events` (use your real Vercel URL after deploy) |
+| **Short description** | Generate on-brand images with Bloom |
+| **Usage hint** | `generate {prompt} {ratio}` |
+
+**Interactivity & Shortcuts** → **Interactivity** → **Request URL**: same as slash commands — `https://YOUR_APP.vercel.app/api/slack/events` (required for Block Kit buttons on generated messages).
+
+**Basic Information** → **App Credentials** — copy these for Vercel (Step 6):
+
+| Slack field | Vercel / env variable |
+|-------------|------------------------|
+| Client ID | `SLACK_CLIENT_ID` |
+| Client Secret | `SLACK_CLIENT_SECRET` |
+| Signing Secret | `SLACK_SIGNING_SECRET` |
+
+Optional: **Event Subscriptions** → **Request URL** — same `https://YOUR_APP.vercel.app/api/slack/events` if you enable events (URL verification is supported).
+
+### Step 4 — Deploy to Vercel
+
+```bash
+npm install -g vercel
 vercel --prod
+```
 
-5. Set environment variables in Vercel dashboard:
+Note the deployment URL Vercel prints (for example `https://bloom-slack-bot-xyz.vercel.app`). Use it everywhere placeholders say `YOUR_APP.vercel.app`.
 
-SLACK_CLIENT_ID=
-SLACK_CLIENT_SECRET=
-SLACK_SIGNING_SECRET=
-INTERNAL_SECRET=any-random-string
-NEXT_PUBLIC_APP_URL=https://YOUR_APP.vercel.app
-SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+### Step 5 — Supabase database
 
-6. Supabase
+This app talks to Postgres through **Supabase** (see `lib/db.ts` and `.env.example`).
 
-Create a [Supabase](https://supabase.com/) project. In the SQL editor, run [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once (creates tables and indexes). Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (service role, server-only) to Vercel environment variables.
+1. Create a project at [supabase.com](https://supabase.com/).
+2. **SQL** → **New query**: paste and run [`supabase/bloom_slack_init_db.sql`](supabase/bloom_slack_init_db.sql) once (creates tables and indexes).
+3. **Project Settings** → **API**: copy **Project URL** and the **service_role** key (server only; never expose to the browser). You will set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in Vercel next.
 
-7. Verify database
+### Step 6 — Environment variables in Vercel
 
-Visit: https://YOUR_APP.vercel.app/api/slack/setup/init
-(Confirms `workspace_configs` and `generation_jobs` exist — run after SQL has been applied)
+Vercel → your project → **Settings** → **Environment Variables**. Add:
 
-8. Install app to Slack workspace
+| Variable | Value |
+|----------|--------|
+| `SLACK_CLIENT_ID` | From Step 3 |
+| `SLACK_CLIENT_SECRET` | From Step 3 |
+| `SLACK_SIGNING_SECRET` | From Step 3 |
+| `INTERNAL_SECRET` | Any random string (e.g. output of `openssl rand -hex 32`) |
+| `NEXT_PUBLIC_APP_URL` | `https://your-app.vercel.app` (no trailing slash) |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase **service_role** secret |
 
-Visit: https://YOUR_APP.vercel.app/api/slack/install
+Redeploy so variables apply:
 
-9. Complete setup
+```bash
+vercel --prod
+```
 
-Check your Slack DMs for the setup link.
-Enter your Bloom API key and select your brand.
+### Step 7 — Update Slack app URLs
 
-10. Test it
+After you have the final Vercel URL, return to [api.slack.com/apps](https://api.slack.com/apps) → your app:
 
+- **OAuth & Permissions** → **Redirect URLs** — add  
+  `https://YOUR_APP.vercel.app/api/slack/oauth`
+- **Slash Commands** → your `/bloom-bot` command → **Request URL** —  
+  `https://YOUR_APP.vercel.app/api/slack/events`
+- **Interactivity & Shortcuts** → **Request URL** — same events URL.
+- **Event Subscriptions** (if enabled) → **Request URL** — same events URL.
+
+### Step 8 — Verify database
+
+Tables are created by the SQL in Step 5. This endpoint only **checks** that `workspace_configs` and `generation_jobs` exist and are reachable:
+
+Open in a browser:
+
+`https://YOUR_APP.vercel.app/api/slack/setup/init`
+
+Expected JSON:
+
+```json
+{ "ok": true, "message": "Database ready. Both tables exist." }
+```
+
+If `ok` is false, fix Supabase credentials or re-run the SQL file in Supabase, then try again.
+
+### Step 9 — Install app to Slack workspace
+
+**Option A — Landing page**
+
+1. Open `https://YOUR_APP.vercel.app`.
+2. Click **Add to Slack**.
+
+**Option B — Slack app settings**
+
+1. [api.slack.com/apps](https://api.slack.com/apps) → your app → **Install App** → **Install to Workspace**.
+
+After installing:
+
+1. Check Slack **DMs** — Bloom should message you with a **setup** link.
+2. Open the link, enter your **Bloom API key**, and **select your brand**.
+
+### Step 10 — Test in Slack
+
+In any channel:
+
+```text
+/bloom-bot help
+```
+
+You should see the help message.
+
+```text
 /bloom-bot generate summer sale hero banner 16:9
+```
+
+You should see a loading message, then a generated image when the job completes.
 
 ## Project structure
 
