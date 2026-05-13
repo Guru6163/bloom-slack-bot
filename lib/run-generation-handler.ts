@@ -183,6 +183,7 @@ export async function handleRunGeneration(body: {
 
   try {
     const aspect = toAspectRatio(job.aspect_ratio);
+    // brand_session_id comes from workspace_configs (setup), not the slash command.
     const imageIds = await generateBloomImages(
       workspace.bloom_api_key.trim(),
       workspace.brand_session_id.trim(),

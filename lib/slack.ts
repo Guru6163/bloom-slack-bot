@@ -194,17 +194,13 @@ export function buildResultBlocks(
   const imageUrl = total > 0 ? imageUrls[idx] : "";
   const p = escapeMrkdwn(truncate(prompt, MAX_PROMPT_PREVIEW));
   const r = escapeMrkdwn(truncate(ratio, 80));
-  const brandLine =
-    brandName !== undefined && brandName.trim() !== ""
-      ? `*Brand:* ${escapeMrkdwn(truncate(brandName, 200))}\n`
-      : "";
 
   const blocks: unknown[] = [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${brandLine}*Prompt:* ${p}\n*Aspect ratio:* ${r}`,
+        text: `*Prompt:* ${p}\n*Aspect ratio:* ${r}`,
       },
     },
   ];
@@ -233,6 +229,11 @@ export function buildResultBlocks(
     });
   }
 
+  const brandEsc =
+    brandName !== undefined && brandName.trim() !== ""
+      ? escapeMrkdwn(truncate(brandName.trim(), 200))
+      : "";
+
   blocks.push({
     type: "context",
     elements: [
@@ -240,7 +241,9 @@ export function buildResultBlocks(
         type: "mrkdwn",
         text:
           total > 0
-            ? `_Image ${idx + 1} of ${total}_`
+            ? brandEsc !== ""
+              ? `_Brand: ${brandEsc} · Image ${idx + 1} of ${total}_`
+              : `_Image ${idx + 1} of ${total}_`
             : "_No image URL available._",
       },
     ],
@@ -377,15 +380,17 @@ export function buildHelpBlocks(): unknown[] {
       text: {
         type: "mrkdwn",
         text: [
-          "*Commands*",
-          "`/bloom-bot generate {prompt} {ratio}`",
-          "`/bloom-bot setup`",
+          "*Examples*",
+          "`/bloom-bot generate summer sale hero 16:9`",
+          "`/bloom-bot generate product launch banner` _(ratio defaults to 1:1)_",
           "`/bloom-bot brands`",
           "`/bloom-bot credits`",
           "`/bloom-bot help`",
+          "`/bloom-bot setup <your_bloom_api_key>`",
           "",
-          "For `generate`, `ratio` must be one of: `1:1`, `4:5`, `9:16`, `16:9` (and other ratios your workspace supports). Ratio aliases: `square`, `landscape`, `portrait`, `story`.",
-          "_Example:_ `/bloom-bot generate sunset over the ocean 16:9`",
+          "The workspace **brand** from setup is used automatically — no `--brand` flag.",
+          "",
+          "Optional ratio at end of `generate`: `1:1`, `4:5`, `9:16`, `16:9`, etc. Aliases: `square`, `landscape`, `portrait`, `story`.",
         ].join("\n"),
       },
     },

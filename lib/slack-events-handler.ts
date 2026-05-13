@@ -124,17 +124,6 @@ async function handleSlashGenerate(
   userId: string,
   threadTs: string | undefined
 ): Promise<Response> {
-  if (
-    !workspace.setup_completed ||
-    !workspace.bloom_api_key.trim() ||
-    !workspace.brand_session_id.trim()
-  ) {
-    const url = await ensureSetupUrl(workspace.team_id);
-    return ephemeralPayload(
-      `🌸 Bloom isn't set up yet.\nVisit ${url} to connect your Bloom account.`
-    );
-  }
-
   const messageTs = await postMessage(
     workspace.bot_token,
     channelId,
@@ -226,6 +215,15 @@ async function handleSlashCommand(params: URLSearchParams): Promise<Response> {
 
   if (parsed.action === "help") {
     return ephemeralBlocks(buildHelpBlocks());
+  }
+
+  if (
+    parsed.action === "generate" &&
+    !workspace.brand_session_id?.trim()
+  ) {
+    return ephemeralPayload(
+      "No Bloom brand is connected for this workspace. Run `/bloom-bot setup <your_bloom_api_key>` and finish selecting a brand in the browser."
+    );
   }
 
   if (needsSetup && parsed.action !== "setup") {

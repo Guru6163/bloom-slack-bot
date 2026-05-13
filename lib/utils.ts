@@ -121,24 +121,26 @@ export async function verifySlackSignature(
  * Parses a /bloom-bot slash command text into structured parts.
  *
  * Supported commands:
- *   generate {prompt} {ratio}   → { action: 'generate', prompt, ratio }
- *   setup {api_key}             → { action: 'setup', apiKey }
- *   brands                      → { action: 'brands' }
- *   credits                     → { action: 'credits' }
- *   help                        → { action: 'help' }
- *   (empty)                     → { action: 'help' }
+ *   generate …   → { action: 'generate', prompt, ratio, variants }
+ *   setup {api_key} → { action: 'setup', apiKey }
+ *   brands / credits / help / (empty) → as named
  *
- * Ratio aliases:
- *   square = 1:1
- *   landscape = 16:9
- *   portrait = 9:16
- *   story = 9:16
+ * Generate parsing:
+ *   - If the last token is a known ratio (digits:digits or alias), that token is
+ *     the ratio and everything after `generate` up to it is the prompt.
+ *   - Otherwise the full text after `generate` is the prompt and ratio defaults
+ *     to `1:1`.
+ *   - Optional trailing `1`–`5` after a ratio sets variant count.
+ *
+ * Ratio aliases: square = 1:1, landscape = 16:9, portrait = 9:16, story = 9:16
  *
  * Examples:
  *   "generate summer sale banner 16:9" →
- *     { action: 'generate', prompt: 'summer sale banner', ratio: '16:9' }
+ *     { action: 'generate', prompt: 'summer sale banner', ratio: '16:9', variants: 1 }
+ *   "generate summer sale banner" →
+ *     { action: 'generate', prompt: 'summer sale banner', ratio: '1:1', variants: 1 }
  *   "generate summer sale banner landscape" →
- *     { action: 'generate', prompt: 'summer sale banner', ratio: '16:9' }
+ *     { action: 'generate', prompt: 'summer sale banner', ratio: '16:9', variants: 1 }
  */
 export function parseSlashCommand(text: string): ParsedCommand {
   const raw = text.trim();
@@ -170,12 +172,12 @@ export function parseSlashCommand(text: string): ParsedCommand {
   }
 
   if (cmd === "generate") {
-    if (tokens.length < 3) {
+    if (tokens.length < 2) {
       return { action: "help" };
     }
 
     let variants = 1;
-    let ratioIndex = tokens.length - 1;
+    let ratioTokenIndex = tokens.length - 1;
 
     const last = tokens[tokens.length - 1]!;
     const secondLast = tokens[tokens.length - 2];
@@ -186,17 +188,24 @@ export function parseSlashCommand(text: string): ParsedCommand {
       isKnownRatioShape(secondLast)
     ) {
       variants = Number.parseInt(last, 10);
-      ratioIndex = tokens.length - 2;
+      ratioTokenIndex = tokens.length - 2;
     }
 
-    const ratioToken = tokens[ratioIndex]!;
-    const prompt = tokens.slice(1, ratioIndex).join(" ").trim();
+    const ratioCandidate = tokens[ratioTokenIndex]!;
+    if (isKnownRatioShape(ratioCandidate)) {
+      const prompt = tokens.slice(1, ratioTokenIndex).join(" ").trim();
+      if (!prompt) {
+        return { action: "help" };
+      }
+      const ratio = resolveRatioToken(ratioCandidate);
+      return { action: "generate", prompt, ratio, variants };
+    }
+
+    const prompt = tokens.slice(1).join(" ").trim();
     if (!prompt) {
       return { action: "help" };
     }
-
-    const ratio = resolveRatioToken(ratioToken);
-    return { action: "generate", prompt, ratio, variants };
+    return { action: "generate", prompt, ratio: "1:1", variants };
   }
 
   return { action: "help" };
