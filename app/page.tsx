@@ -60,7 +60,7 @@ export default function Home() {
             border: "1px solid rgba(245, 240, 232, 0.12)",
           }}
         >
-          /bloom-gen
+          /bloom-bot
         </code>
       </p>
       <Link

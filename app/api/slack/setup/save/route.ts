@@ -26,7 +26,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * After saving:
  *   - Sends a DM to the installer:
  *     "🌸 Bloom is ready! Brand set to {brandName}.
- *      Try it: /bloom-gen generate summer sale hero 16:9"
+ *      Try it: /bloom-bot generate summer sale hero 16:9"
  */
 export async function POST(req: Request): Promise<Response> {
   let body: unknown;
@@ -111,7 +111,7 @@ export async function POST(req: Request): Promise<Response> {
             type: "section",
             text: {
               type: "plain_text",
-              text: `🌸 Bloom is ready! Brand set to ${brandName}.\nTry it: /bloom-gen generate summer sale hero 16:9`,
+              text: `🌸 Bloom is ready! Brand set to ${brandName}.\nTry it: /bloom-bot generate summer sale hero 16:9`,
               emoji: true,
             },
           },

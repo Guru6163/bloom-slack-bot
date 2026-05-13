@@ -7,19 +7,52 @@ Generate on-brand images in Slack with a single slash command.
 1. Install the app to your Slack workspace
 2. Connect your Bloom API key via the setup link
 3. Select your brand
-4. Type /bloom-bot generate summer sale hero 16:9
+4. Type `/bloom-bot generate summer sale hero 16:9`
 5. Bloom posts the image back in your channel
 
-## Commands
+## Using the bot in Slack
 
-/bloom-bot generate {prompt} {ratio}  — Generate images
-/bloom-bot setup                      — Get setup link
-/bloom-bot brands                     — List your brands
-/bloom-bot credits                    — Check credit balance
-/bloom-bot help                       — Show all commands
+The Slack app must define the slash command as **`/bloom-bot`** (see Slack configuration below). Bloom credentials are **not** stored in Slack’s UI; they are saved for your workspace in this app’s database after you finish setup.
 
-Aspect ratio aliases:
-  square = 1:1 | landscape = 16:9 | portrait = 9:16 | story = 9:16
+### First-time setup (per Slack workspace)
+
+1. **Install the app** — Use **Add to Slack** on your deployed app URL, or **Install to Workspace** in the Slack app settings.
+2. **Open the setup link** — Right after install, the bot sends the person who installed it a **DM** with a link to the web setup page. If you lost it, run any command (for example `/bloom-bot help`); if Bloom is not configured yet, Slack shows an ephemeral message with the same **setup URL**—open it in the browser.
+3. **On the setup page** — Paste your [Bloom API key](https://www.trybloom.ai/developers), validate it, pick a **brand**, then save. Alternatively you can paste the key in Slack first (next step) and only choose the brand on the web page.
+4. **Optional: set the API key from Slack** — `/bloom-bot setup YOUR_BLOOM_API_KEY` saves the key and replies with a link to **select your brand** (you must still complete that step in the browser).
+
+Until both an API key and a brand are saved, `/bloom-bot generate` will tell you to finish setup.
+
+### Slash commands
+
+| Command | What it does |
+|--------|----------------|
+| `/bloom-bot help` | Lists examples and ratio hints (same as sending unknown text). |
+| `/bloom-bot generate …` | Starts image generation using the workspace’s connected brand. See syntax below. |
+| `/bloom-bot setup YOUR_API_KEY` | Stores the Bloom API key for this workspace, then gives you the link to pick a brand. |
+| `/bloom-bot brands` | Lists Bloom brands available for your stored API key. |
+| `/bloom-bot credits` | Shows Bloom credit balance (or “Unlimited” when applicable). |
+
+**`generate` syntax**
+
+- Form: `/bloom-bot generate <prompt> [<aspect_ratio>] [<variants>]`
+- If you omit the ratio, it defaults to **`1:1`**.
+- Put the **ratio last** (before an optional variant count): supported shapes include `1:1`, `4:5`, `9:16`, `16:9`, etc. **Aliases:** `square` → `1:1`, `landscape` → `16:9`, `portrait` / `story` → `9:16`.
+- Optional **variants** `1`–`5` after the ratio: e.g. `/bloom-bot generate holiday banner 16:9 3` requests three variants.
+
+Examples:
+
+```text
+/bloom-bot help
+/bloom-bot generate summer sale hero banner
+/bloom-bot generate product launch social portrait
+/bloom-bot generate conference keynote slide 16:9
+/bloom-bot brands
+/bloom-bot credits
+/bloom-bot setup paste_your_bloom_api_key_here
+```
+
+**After a generation**, the message may include Block Kit buttons (for example regenerate or download). Those require **Interactivity** in the Slack app pointing at the same **`/api/slack/events`** URL as slash commands.
 
 ## Run locally
 

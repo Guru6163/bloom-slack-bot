@@ -5,7 +5,7 @@ import { verifySlackSignature } from "@/lib/utils";
  * app/api/slack/events/route.ts
  *
  * Receives all incoming events from Slack:
- *   - Slash commands (/bloom-gen)
+ *   - Slash commands (/bloom-bot)
  *   - Button interactions (prev, next, regenerate, download)
  *   - URL verification challenge
  *

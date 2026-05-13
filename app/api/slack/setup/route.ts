@@ -174,7 +174,7 @@ function renderSetupPage(cfg: SetupConfig): Response {
     <div id="success" class="panel hidden">
       <h1 style="margin-top:0;">You&apos;re all set</h1>
       <p class="sub" style="margin-bottom:0;">Bloom is connected. Try this in Slack:</p>
-      <div class="success-cmd">/bloom-gen generate summer sale hero 16:9</div>
+      <div class="success-cmd">/bloom-bot generate summer sale hero 16:9</div>
     </div>
   </div>
 

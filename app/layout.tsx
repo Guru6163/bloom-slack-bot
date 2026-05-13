@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Bloom for Slack",
-  description: "Generate on-brand images in Slack with /bloom-gen",
+  description: "Generate on-brand images in Slack with /bloom-bot",
 };
 
 /**
